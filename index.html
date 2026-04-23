@@ -21,13 +21,26 @@
       border: 2px solid #333;
       border-radius: 10px;
     }
+    #results {
+      background: white;
+      display: inline-block;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      margin-top: 15px;
+      font-size: 18px;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
   <h1>Gesture Control System</h1>
-  <div id="output">Initializing...</div>
+  <p>Show a gesture to see predictions</p>
 
-  <!-- FIXED CDN LINKS -->
+  <div id="output">Initializing...</div>
+  <div id="results"></div>
+
+  <!-- Stable CDN versions -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
@@ -35,8 +48,6 @@
     const URL = "https://teachablemachine.withgoogle.com/models/EvZQRaEdq/";
 
     let model, webcam;
-    let lastTrigger = 0;
-    const cooldown = 800;
 
     async function init() {
       const output = document.getElementById("output");
@@ -52,7 +63,6 @@
         output.innerText = "Requesting camera...";
 
         webcam = new tmImage.Webcam(350, 350, true);
-
         await webcam.setup();
         await webcam.play();
 
@@ -63,7 +73,7 @@
         window.requestAnimationFrame(loop);
 
       } catch (err) {
-        console.error("INIT ERROR:", err);
+        console.error(err);
         output.innerText = "Error: " + err.message;
       }
     }
@@ -77,52 +87,30 @@
     async function predict() {
       const prediction = await model.predict(webcam.canvas);
 
+      let output = document.getElementById("output");
+      let resultsDiv = document.getElementById("results");
+
+      // Get highest prediction
       let highest = prediction.reduce((a, b) =>
         a.probability > b.probability ? a : b
       );
 
-      const output = document.getElementById("output");
+      // Show main class name
+      output.innerText = highest.className;
 
-      // Confidence threshold
-      if (highest.probability < 0.8) {
-        output.innerText = "Idle";
-        document.body.style.background = "#f5f5f5";
-        return;
+      // Show all probabilities
+      let resultsHTML = "";
+
+      for (let i = 0; i < prediction.length; i++) {
+        const className = prediction[i].className;
+        const prob = (prediction[i].probability * 100).toFixed(1);
+
+        resultsHTML += className + ": " + prob + "%<br>";
       }
 
-      // Cooldown
-      if (Date.now() - lastTrigger < cooldown) return;
-      lastTrigger = Date.now();
-
-      const result = highest.className;
-
-      if (result === "Thumbs Up") {
-        output.innerText = "Start";
-        document.body.style.background = "#4CAF50";
-      } 
-      else if (result === "Thumbs Down") {
-        output.innerText = "Stop";
-        document.body.style.background = "#f44336";
-      } 
-      else if (result === "Stop") {
-        output.innerText = "Pause";
-        document.body.style.background = "#ffeb3b";
-      } 
-      else if (result === "Punch") {
-        output.innerText = "Action";
-        document.body.style.background = "#ff9800";
-      } 
-      else if (result === "Peace") {
-        output.innerText = "Special";
-        document.body.style.background = "#2196F3";
-      } 
-      else {
-        output.innerText = "Idle";
-        document.body.style.background = "#f5f5f5";
-      }
+      resultsDiv.innerHTML = resultsHTML;
     }
 
-    // IMPORTANT FIX
     window.onload = init;
   </script>
 </body>
