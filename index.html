@@ -1,31 +1,129 @@
-<script>
-async function init() {
-  const output = document.getElementById("output");
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gesture AI</title>
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    #output {
+      font-size: 28px;
+      margin: 20px;
+      font-weight: bold;
+    }
+    canvas {
+      border: 2px solid #333;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gesture Control System</h1>
+  <div id="output">Initializing...</div>
 
-  try {
-    output.innerText = "Loading model...";
+  <!-- FIXED CDN LINKS -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
-    const modelURL = URL + "model.json";
-    const metadataURL = URL + "metadata.json";
+  <script>
+    const URL = "https://teachablemachine.withgoogle.com/models/EvZQRaEdq/";
 
-    model = await tmImage.load(modelURL, metadataURL);
+    let model, webcam;
+    let lastTrigger = 0;
+    const cooldown = 800;
 
-    output.innerText = "Requesting camera...";
+    async function init() {
+      const output = document.getElementById("output");
 
-    webcam = new tmImage.Webcam(350, 350, true);
+      try {
+        output.innerText = "Loading model...";
 
-    await webcam.setup();  // this should trigger permission popup
-    await webcam.play();
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
-    document.body.appendChild(webcam.canvas);
+        model = await tmImage.load(modelURL, metadataURL);
 
-    output.innerText = "Ready";
+        output.innerText = "Requesting camera...";
 
-    window.requestAnimationFrame(loop);
+        webcam = new tmImage.Webcam(350, 350, true);
 
-  } catch (err) {
-    console.error("INIT ERROR:", err);
-    output.innerText = "ERROR: " + err.message;
-  }
-}
-</script>
+        await webcam.setup();
+        await webcam.play();
+
+        document.body.appendChild(webcam.canvas);
+
+        output.innerText = "Ready";
+
+        window.requestAnimationFrame(loop);
+
+      } catch (err) {
+        console.error("INIT ERROR:", err);
+        output.innerText = "Error: " + err.message;
+      }
+    }
+
+    async function loop() {
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+
+      let highest = prediction.reduce((a, b) =>
+        a.probability > b.probability ? a : b
+      );
+
+      const output = document.getElementById("output");
+
+      // Confidence threshold
+      if (highest.probability < 0.8) {
+        output.innerText = "Idle";
+        document.body.style.background = "#f5f5f5";
+        return;
+      }
+
+      // Cooldown
+      if (Date.now() - lastTrigger < cooldown) return;
+      lastTrigger = Date.now();
+
+      const result = highest.className;
+
+      if (result === "Thumbs Up") {
+        output.innerText = "Start";
+        document.body.style.background = "#4CAF50";
+      } 
+      else if (result === "Thumbs Down") {
+        output.innerText = "Stop";
+        document.body.style.background = "#f44336";
+      } 
+      else if (result === "Stop") {
+        output.innerText = "Pause";
+        document.body.style.background = "#ffeb3b";
+      } 
+      else if (result === "Punch") {
+        output.innerText = "Action";
+        document.body.style.background = "#ff9800";
+      } 
+      else if (result === "Peace") {
+        output.innerText = "Special";
+        document.body.style.background = "#2196F3";
+      } 
+      else {
+        output.innerText = "Idle";
+        document.body.style.background = "#f5f5f5";
+      }
+    }
+
+    // IMPORTANT FIX
+    window.onload = init;
+  </script>
+</body>
+</html>
