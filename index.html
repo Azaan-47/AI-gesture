@@ -38,18 +38,25 @@
     const cooldown = 800;
 
     async function init() {
-      const modelURL = URL + "model.json";
-      const metadataURL = URL + "metadata.json";
+      try {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
-      model = await tmImage.load(modelURL, metadataURL);
+        model = await tmImage.load(modelURL, metadataURL);
 
-      webcam = new tmImage.Webcam(350, 350, true);
-      await webcam.setup();
-      await webcam.play();
+        webcam = new tmImage.Webcam(350, 350, true);
+        await webcam.setup();
+        await webcam.play();
 
-      document.body.appendChild(webcam.canvas);
+        document.body.appendChild(webcam.canvas);
 
-      window.requestAnimationFrame(loop);
+        document.getElementById("output").innerText = "Ready";
+
+        window.requestAnimationFrame(loop);
+      } catch (err) {
+        console.error(err);
+        document.getElementById("output").innerText = "Error loading model or camera";
+      }
     }
 
     async function loop() {
@@ -74,7 +81,7 @@
         return;
       }
 
-      // Cooldown to prevent rapid switching
+      // Cooldown
       if (Date.now() - lastTrigger < cooldown) return;
       lastTrigger = Date.now();
 
@@ -88,11 +95,11 @@
         output.innerText = "Stop";
         document.body.style.background = "#f44336";
       } 
-      else if (result === "Open Hand") {
+      else if (result === "Stop") {
         output.innerText = "Pause";
         document.body.style.background = "#ffeb3b";
       } 
-      else if (result === "Fist") {
+      else if (result === "Punch") {
         output.innerText = "Action";
         document.body.style.background = "#ff9800";
       } 
