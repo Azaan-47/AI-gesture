@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Gesture AI Controller</title>
+  <title>Gesture AI</title>
   <style>
     body {
       text-align: center;
@@ -32,12 +32,13 @@
   </style>
 </head>
 <body>
-  <h1>Gesture AI Controller</h1>
-  <p>Hold gesture for 5 seconds to control slides</p>
+  <h1>Gesture Recognition System</h1>
+  <p>Show a gesture to see predictions</p>
 
   <div id="output">Initializing...</div>
   <div id="results"></div>
 
+  <!-- Stable libraries -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
@@ -45,11 +46,6 @@
     const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
 
     let model, webcam;
-
-    // Hold detection
-    let currentGesture = "";
-    let gestureStartTime = 0;
-    let triggered = false;
 
     async function init() {
       const output = document.getElementById("output");
@@ -86,14 +82,6 @@
       window.requestAnimationFrame(loop);
     }
 
-    function sendGesture(gesture) {
-      fetch("http://127.0.0.1:5000/gesture", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ gesture: gesture })
-      });
-    }
-
     async function predict() {
       const prediction = await model.predict(webcam.canvas);
 
@@ -104,39 +92,18 @@
         a.probability > b.probability ? a : b
       );
 
-      const result = highest.className;
+      // Show main prediction
+      output.innerText = highest.className;
 
-      // Show main result
-      output.innerText = result;
-
-      // Show all probabilities
+      // Show all percentages
       let resultsHTML = "";
       for (let i = 0; i < prediction.length; i++) {
         const className = prediction[i].className;
         const prob = (prediction[i].probability * 100).toFixed(1);
         resultsHTML += className + ": " + prob + "%<br>";
       }
+
       resultsDiv.innerHTML = resultsHTML;
-
-      // 5-second hold logic
-      if (result === currentGesture) {
-        if (!triggered && Date.now() - gestureStartTime > 5000) {
-
-          if (result === "Peace") {
-            sendGesture("Peace");
-          }
-
-          if (result === "Stop") {
-            sendGesture("Stop");
-          }
-
-          triggered = true;
-        }
-      } else {
-        currentGesture = result;
-        gestureStartTime = Date.now();
-        triggered = false;
-      }
     }
 
     window.onload = init;
