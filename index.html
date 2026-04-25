@@ -20,14 +20,33 @@
       border-radius: 10px;
     }
     #results {
-      background: white;
-      display: inline-block;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-      margin-top: 15px;
-      font-size: 18px;
+      width: 320px;
+      margin: 20px auto;
       text-align: left;
+    }
+    .bar-container {
+      margin-bottom: 12px;
+    }
+    .label {
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    .bar {
+      width: 100%;
+      height: 18px;
+      background: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .fill {
+      height: 100%;
+      width: 0%;
+      color: white;
+      font-size: 12px;
+      text-align: right;
+      padding-right: 5px;
+      line-height: 18px;
+      transition: width 0.2s ease;
     }
   </style>
 </head>
@@ -38,7 +57,6 @@
   <div id="output">Initializing...</div>
   <div id="results"></div>
 
-  <!-- Stable libraries -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
@@ -46,6 +64,15 @@
     const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
 
     let model, webcam;
+
+    const colors = [
+      "#4CAF50", // green
+      "#f44336", // red
+      "#2196F3", // blue
+      "#ff9800", // orange
+      "#9c27b0", // purple
+      "#009688"  // teal
+    ];
 
     async function init() {
       const output = document.getElementById("output");
@@ -57,6 +84,35 @@
         const metadataURL = URL + "metadata.json";
 
         model = await tmImage.load(modelURL, metadataURL);
+
+        const maxPredictions = model.getTotalClasses();
+
+        const resultsDiv = document.getElementById("results");
+
+        // Create bars
+        for (let i = 0; i < maxPredictions; i++) {
+          const className = model.getClassLabels()[i];
+
+          const container = document.createElement("div");
+          container.className = "bar-container";
+
+          const label = document.createElement("div");
+          label.className = "label";
+          label.innerText = className;
+
+          const bar = document.createElement("div");
+          bar.className = "bar";
+
+          const fill = document.createElement("div");
+          fill.className = "fill";
+          fill.id = "bar-" + i;
+          fill.style.background = colors[i % colors.length];
+
+          bar.appendChild(fill);
+          container.appendChild(label);
+          container.appendChild(bar);
+          resultsDiv.appendChild(container);
+        }
 
         output.innerText = "Requesting camera...";
 
@@ -86,24 +142,22 @@
       const prediction = await model.predict(webcam.canvas);
 
       let output = document.getElementById("output");
-      let resultsDiv = document.getElementById("results");
 
+      // Find highest prediction
       let highest = prediction.reduce((a, b) =>
         a.probability > b.probability ? a : b
       );
 
-      // Show main prediction
       output.innerText = highest.className;
 
-      // Show all percentages
-      let resultsHTML = "";
+      // Update bars
       for (let i = 0; i < prediction.length; i++) {
-        const className = prediction[i].className;
-        const prob = (prediction[i].probability * 100).toFixed(1);
-        resultsHTML += className + ": " + prob + "%<br>";
-      }
+        const prob = prediction[i].probability * 100;
+        const bar = document.getElementById("bar-" + i);
 
-      resultsDiv.innerHTML = resultsHTML;
+        bar.style.width = prob + "%";
+        bar.innerText = prob.toFixed(1) + "%";
+      }
     }
 
     window.onload = init;
