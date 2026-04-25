@@ -5,32 +5,46 @@
   <title>Gesture AI</title>
   <style>
     body {
-      text-align: center;
       font-family: Arial, sans-serif;
       background: #f5f5f5;
+      margin: 0;
+      text-align: center;
     }
-    h1 { margin-top: 20px; }
+
+    h1 {
+      margin: 15px;
+    }
+
     #output {
-      font-size: 28px;
-      margin: 20px;
+      font-size: 24px;
+      margin-bottom: 10px;
       font-weight: bold;
     }
-    canvas {
-      border: 2px solid #333;
-      border-radius: 10px;
+
+    /* Layout */
+    .container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 30px;
+      padding: 20px;
     }
+
+    /* Bars (LEFT SIDE NOW) */
     #results {
-      width: 320px;
-      margin: 20px auto;
+      width: 300px;
       text-align: left;
     }
+
     .bar-container {
       margin-bottom: 12px;
     }
+
     .label {
       font-size: 14px;
       margin-bottom: 3px;
     }
+
     .bar {
       width: 100%;
       height: 18px;
@@ -38,6 +52,7 @@
       border-radius: 10px;
       overflow: hidden;
     }
+
     .fill {
       height: 100%;
       width: 0%;
@@ -48,14 +63,26 @@
       line-height: 18px;
       transition: width 0.2s ease;
     }
+
+    /* Webcam */
+    #webcam-container canvas {
+      border: 2px solid #333;
+      border-radius: 10px;
+    }
   </style>
 </head>
 <body>
-  <h1>Gesture Recognition System</h1>
-  <p>Show a gesture to see predictions</p>
 
+  <h1>Gesture Recognition System</h1>
   <div id="output">Initializing...</div>
-  <div id="results"></div>
+
+  <div class="container">
+    <!-- LEFT: Bars -->
+    <div id="results"></div>
+
+    <!-- RIGHT: Camera -->
+    <div id="webcam-container"></div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
@@ -66,12 +93,12 @@
     let model, webcam;
 
     const colors = [
-      "#4CAF50", // green
-      "#f44336", // red
-      "#2196F3", // blue
-      "#ff9800", // orange
-      "#9c27b0", // purple
-      "#009688"  // teal
+      "#4CAF50",
+      "#f44336",
+      "#2196F3",
+      "#ff9800",
+      "#9c27b0",
+      "#009688"
     ];
 
     async function init() {
@@ -86,7 +113,6 @@
         model = await tmImage.load(modelURL, metadataURL);
 
         const maxPredictions = model.getTotalClasses();
-
         const resultsDiv = document.getElementById("results");
 
         // Create bars
@@ -116,11 +142,11 @@
 
         output.innerText = "Requesting camera...";
 
-        webcam = new tmImage.Webcam(350, 350, true);
+        webcam = new tmImage.Webcam(400, 400, true);
         await webcam.setup();
         await webcam.play();
 
-        document.body.appendChild(webcam.canvas);
+        document.getElementById("webcam-container").appendChild(webcam.canvas);
 
         output.innerText = "Ready";
 
@@ -143,14 +169,12 @@
 
       let output = document.getElementById("output");
 
-      // Find highest prediction
       let highest = prediction.reduce((a, b) =>
         a.probability > b.probability ? a : b
       );
 
       output.innerText = highest.className;
 
-      // Update bars
       for (let i = 0; i < prediction.length; i++) {
         const prob = prediction[i].probability * 100;
         const bar = document.getElementById("bar-" + i);
@@ -162,5 +186,6 @@
 
     window.onload = init;
   </script>
+
 </body>
 </html>
