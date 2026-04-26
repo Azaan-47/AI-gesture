@@ -5,34 +5,107 @@
   <title>Gesture AI</title>
   <style>
     body {
-      text-align: center;
-      font-family: Arial, sans-serif;
+      margin: 0;
+      font-family: Arial;
       background: #111;
       color: white;
+      display: flex;
+      height: 100vh;
+    }
+
+    /* LEFT SIDE (bars) */
+    #left {
+      flex: 1;
+      padding: 20px;
     }
 
     h1 {
-      margin-top: 20px;
+      text-align: center;
     }
 
-    #output {
-      font-size: 28px;
-      margin: 20px;
-      font-weight: bold;
+    .bar-container {
+      margin: 15px 0;
+    }
+
+    .label {
+      margin-bottom: 5px;
+    }
+
+    .bar {
+      height: 20px;
+      width: 0%;
+      border-radius: 10px;
+      transition: width 0.2s;
+    }
+
+    /* COLORS */
+    .thumbsup { background: #4CAF50; }
+    .thumbsdown { background: #f44336; }
+    .stop { background: #ffeb3b; }
+    .punch { background: #ff9800; }
+    .peace { background: #2196F3; }
+    .nothing { background: #888; }
+
+    /* RIGHT SIDE (camera) */
+    #right {
+      width: 380px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     canvas {
-      border: 2px solid #333;
       border-radius: 10px;
+      border: 2px solid #333;
+    }
+
+    #status {
+      text-align: center;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
-<h1>Gesture Recognition System</h1>
-<div id="output">Initializing...</div>
+<div id="left">
+  <h1>Gesture Recognition</h1>
 
-<!-- STABLE SCRIPTS -->
+  <div class="bar-container">
+    <div class="label">Thumbs Up</div>
+    <div id="bar-thumbsup" class="bar thumbsup"></div>
+  </div>
+
+  <div class="bar-container">
+    <div class="label">Thumbs Down</div>
+    <div id="bar-thumbsdown" class="bar thumbsdown"></div>
+  </div>
+
+  <div class="bar-container">
+    <div class="label">Stop</div>
+    <div id="bar-stop" class="bar stop"></div>
+  </div>
+
+  <div class="bar-container">
+    <div class="label">Punch</div>
+    <div id="bar-punch" class="bar punch"></div>
+  </div>
+
+  <div class="bar-container">
+    <div class="label">Peace</div>
+    <div id="bar-peace" class="bar peace"></div>
+  </div>
+
+  <div class="bar-container">
+    <div class="label">Nothing</div>
+    <div id="bar-nothing" class="bar nothing"></div>
+  </div>
+
+  <div id="status">Initializing...</div>
+</div>
+
+<div id="right"></div>
+
+<!-- FIXED SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
@@ -40,82 +113,52 @@
 const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
 
 let model, webcam;
-let lastTrigger = 0;
-const cooldown = 800;
 
 async function init() {
-  const output = document.getElementById("output");
+  const status = document.getElementById("status");
 
   try {
-    output.innerText = "Loading model...";
+    status.innerText = "Loading model...";
 
     model = await tmImage.load(URL + "model.json", URL + "metadata.json");
 
-    output.innerText = "Starting camera...";
+    status.innerText = "Starting camera...";
 
     webcam = new tmImage.Webcam(350, 350, true);
     await webcam.setup();
     await webcam.play();
 
-    document.body.appendChild(webcam.canvas);
+    document.getElementById("right").appendChild(webcam.canvas);
 
-    output.innerText = "Ready";
+    status.innerText = "Ready";
 
-    window.requestAnimationFrame(loop);
+    loop();
 
-  } catch (err) {
-    console.error(err);
-    output.innerText = "Error: " + err.message;
+  } catch (e) {
+    console.error(e);
+    status.innerText = "Error: " + e.message;
   }
 }
 
 async function loop() {
   webcam.update();
   await predict();
-  window.requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 }
 
 async function predict() {
   const prediction = await model.predict(webcam.canvas);
 
-  let highest = prediction.reduce((a, b) =>
-    a.probability > b.probability ? a : b
-  );
+  prediction.forEach(p => {
+    const percent = Math.round(p.probability * 100);
 
-  let output = document.getElementById("output");
+    const id = "bar-" + p.className.toLowerCase().replace(" ", "");
+    const bar = document.getElementById(id);
 
-  if (highest.probability < 0.8) {
-    output.innerText = "Idle";
-    document.body.style.background = "#111";
-    return;
-  }
-
-  if (Date.now() - lastTrigger < cooldown) return;
-  lastTrigger = Date.now();
-
-  const result = highest.className;
-
-  output.innerText = result;
-
-  // simple visual feedback
-  if (result === "Thumbs Up") {
-    document.body.style.background = "#1b5e20";
-  } 
-  else if (result === "Thumbs Down") {
-    document.body.style.background = "#b71c1c";
-  } 
-  else if (result === "Stop") {
-    document.body.style.background = "#f9a825";
-  } 
-  else if (result === "Punch") {
-    document.body.style.background = "#e65100";
-  } 
-  else if (result === "Peace") {
-    document.body.style.background = "#0d47a1";
-  } 
-  else {
-    document.body.style.background = "#111";
-  }
+    if (bar) {
+      bar.style.width = percent + "%";
+    }
+  });
 }
 
 init();
