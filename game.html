@@ -64,8 +64,8 @@
 <body>
 
 <h1>Gesture Password Unlock</h1>
-<div id="status">Loading AI...</div>
-<div id="sequence">Waiting...</div>
+<div id="status">Locked 🔒</div>
+<div id="sequence">Enter Gesture Sequence...</div>
 
 <div id="lock">🔒</div>
 
@@ -73,43 +73,35 @@
 
 <div id="webcam-container"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8"></script>
 
 <script>
 const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
 
 let model, webcam;
 
+// PASSWORD
 const password = ["Thumbs Up", "Stop", "Peace", "Stop"];
 let input = [];
+
 let lastInputTime = 0;
 
 async function init() {
-  const status = document.getElementById("status");
-
   try {
-    status.innerText = "Loading model...";
-
     model = await tmImage.load(URL + "model.json", URL + "metadata.json");
 
-    status.innerText = "Starting camera...";
-
-    webcam = new tmImage.Webcam(150, 150, true);
+    webcam = new tmImage.Webcam(150,150,true);
     await webcam.setup();
     await webcam.play();
 
     webcam.canvas.classList.add("webcam");
     document.getElementById("webcam-container").appendChild(webcam.canvas);
 
-    status.innerText = "Locked 🔒";
-    document.getElementById("sequence").innerText = "● ● ● ●";
-
     loop();
 
   } catch (e) {
-    console.error(e);
-    status.innerText = "Error: " + e.message;
+    document.getElementById("status").innerText = "AI failed to load";
   }
 }
 
@@ -123,10 +115,12 @@ async function predict() {
   const prediction = await model.predict(webcam.canvas);
 
   let highest = prediction.reduce((a,b)=>
-    a.probability > b.probability ? a : b
+    a.probability>b.probability?a:b
   );
 
   if (highest.probability < 0.9) return;
+
+  // cooldown
   if (Date.now() - lastInputTime < 1000) return;
 
   lastInputTime = Date.now();
@@ -138,7 +132,7 @@ async function predict() {
   input.push(gesture);
 
   document.getElementById("sequence").innerText =
-    "● ".repeat(input.length);
+    "Input: " + input.join(" → ");
 
   checkPassword();
 }
@@ -160,31 +154,28 @@ function success() {
   document.getElementById("status").innerText = "Unlocked ✅";
   document.getElementById("lock").style.background = "green";
   document.getElementById("lock").innerText = "🔓";
-
-  setTimeout(reset, 4000);
 }
 
 function fail() {
   document.getElementById("status").innerText = "Wrong Password ❌";
+  document.getElementById("lock").style.background = "red";
   input = [];
 
   setTimeout(() => {
     document.getElementById("status").innerText = "Locked 🔒";
-    document.getElementById("sequence").innerText = "● ● ● ●";
+    document.getElementById("sequence").innerText = "Try Again...";
   }, 1500);
 }
 
-function reset() {
+document.getElementById("resetBtn").onclick = () => {
   input = [];
   document.getElementById("status").innerText = "Locked 🔒";
-  document.getElementById("sequence").innerText = "● ● ● ●";
+  document.getElementById("sequence").innerText = "Enter Gesture Sequence...";
   document.getElementById("lock").style.background = "red";
   document.getElementById("lock").innerText = "🔒";
-}
+};
 
-document.getElementById("resetBtn").onclick = reset;
-
-window.onload = init;
+init();
 </script>
 
 </body>
