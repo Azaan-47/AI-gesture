@@ -5,210 +5,121 @@
   <title>Gesture AI</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
       text-align: center;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
     }
 
     h1 {
-      margin: 15px;
+      margin-top: 20px;
     }
 
     #output {
-      font-size: 24px;
-      margin-bottom: 10px;
+      font-size: 28px;
+      margin: 20px;
       font-weight: bold;
     }
 
-    .container {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 30px;
-      padding: 20px;
-    }
-
-    /* Bars */
-    #results {
-      width: 300px;
-      text-align: left;
-    }
-
-    .bar-container {
-      margin-bottom: 12px;
-    }
-
-    .label {
-      font-size: 14px;
-      margin-bottom: 3px;
-    }
-
-    .bar {
-      width: 100%;
-      height: 18px;
-      background: #ddd;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .fill {
-      height: 100%;
-      width: 0%;
-      color: white;
-      font-size: 12px;
-      text-align: right;
-      padding-right: 5px;
-      line-height: 18px;
-      transition: width 0.2s ease;
-    }
-
-    /* Webcam */
-    #webcam-container canvas {
+    canvas {
       border: 2px solid #333;
       border-radius: 10px;
-    }
-
-    /* Button */
-    #gameBtn {
-      margin: 30px 0;
-      padding: 12px 20px;
-      font-size: 16px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    #gameBtn:hover {
-      background: #45a049;
-      transform: scale(1.05);
     }
   </style>
 </head>
 <body>
 
-  <h1>Gesture Recognition System</h1>
-  <div id="output">Initializing...</div>
+<h1>Gesture Recognition System</h1>
+<div id="output">Initializing...</div>
 
-  <div class="container">
-    <!-- LEFT: Bars -->
-    <div id="results"></div>
+<!-- STABLE SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8"></script>
 
-    <!-- RIGHT: Camera -->
-    <div id="webcam-container"></div>
-  </div>
+<script>
+const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
 
+let model, webcam;
+let lastTrigger = 0;
+const cooldown = 800;
 
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+async function init() {
+  const output = document.getElementById("output");
 
-  <script>
-    const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
+  try {
+    output.innerText = "Loading model...";
 
-    let model, webcam;
+    model = await tmImage.load(URL + "model.json", URL + "metadata.json");
 
-    const colors = [
-      "#4CAF50",
-      "#f44336",
-      "#2196F3",
-      "#ff9800",
-      "#9c27b0",
-      "#009688"
-    ];
+    output.innerText = "Starting camera...";
 
-    async function init() {
-      const output = document.getElementById("output");
+    webcam = new tmImage.Webcam(350, 350, true);
+    await webcam.setup();
+    await webcam.play();
 
-      try {
-        output.innerText = "Loading model...";
+    document.body.appendChild(webcam.canvas);
 
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
+    output.innerText = "Ready";
 
-        model = await tmImage.load(modelURL, metadataURL);
+    window.requestAnimationFrame(loop);
 
-        const maxPredictions = model.getTotalClasses();
-        const resultsDiv = document.getElementById("results");
+  } catch (err) {
+    console.error(err);
+    output.innerText = "Error: " + err.message;
+  }
+}
 
-        // Create bars
-        for (let i = 0; i < maxPredictions; i++) {
-          const className = model.getClassLabels()[i];
+async function loop() {
+  webcam.update();
+  await predict();
+  window.requestAnimationFrame(loop);
+}
 
-          const container = document.createElement("div");
-          container.className = "bar-container";
+async function predict() {
+  const prediction = await model.predict(webcam.canvas);
 
-          const label = document.createElement("div");
-          label.className = "label";
-          label.innerText = className;
+  let highest = prediction.reduce((a, b) =>
+    a.probability > b.probability ? a : b
+  );
 
-          const bar = document.createElement("div");
-          bar.className = "bar";
+  let output = document.getElementById("output");
 
-          const fill = document.createElement("div");
-          fill.className = "fill";
-          fill.id = "bar-" + i;
-          fill.style.background = colors[i % colors.length];
+  if (highest.probability < 0.8) {
+    output.innerText = "Idle";
+    document.body.style.background = "#111";
+    return;
+  }
 
-          bar.appendChild(fill);
-          container.appendChild(label);
-          container.appendChild(bar);
-          resultsDiv.appendChild(container);
-        }
+  if (Date.now() - lastTrigger < cooldown) return;
+  lastTrigger = Date.now();
 
-        output.innerText = "Requesting camera...";
+  const result = highest.className;
 
-        webcam = new tmImage.Webcam(400, 400, true);
-        await webcam.setup();
-        await webcam.play();
+  output.innerText = result;
 
-        document.getElementById("webcam-container").appendChild(webcam.canvas);
+  // simple visual feedback
+  if (result === "Thumbs Up") {
+    document.body.style.background = "#1b5e20";
+  } 
+  else if (result === "Thumbs Down") {
+    document.body.style.background = "#b71c1c";
+  } 
+  else if (result === "Stop") {
+    document.body.style.background = "#f9a825";
+  } 
+  else if (result === "Punch") {
+    document.body.style.background = "#e65100";
+  } 
+  else if (result === "Peace") {
+    document.body.style.background = "#0d47a1";
+  } 
+  else {
+    document.body.style.background = "#111";
+  }
+}
 
-        output.innerText = "Ready";
-
-        window.requestAnimationFrame(loop);
-
-      } catch (err) {
-        console.error(err);
-        output.innerText = "Error: " + err.message;
-      }
-    }
-
-    async function loop() {
-      webcam.update();
-      await predict();
-      window.requestAnimationFrame(loop);
-    }
-
-    async function predict() {
-      const prediction = await model.predict(webcam.canvas);
-
-      let output = document.getElementById("output");
-
-      let highest = prediction.reduce((a, b) =>
-        a.probability > b.probability ? a : b
-      );
-
-      output.innerText = highest.className;
-
-      for (let i = 0; i < prediction.length; i++) {
-        const prob = prediction[i].probability * 100;
-        const bar = document.getElementById("bar-" + i);
-
-        bar.style.width = prob + "%";
-        bar.innerText = prob.toFixed(1) + "%";
-      }
-    }
-
-    // Button click
-    document.getElementById("gameBtn").onclick = function () {
-      window.location.href = "game.html";
-    };
-
-    window.onload = init;
-  </script>
+init();
+</script>
 
 </body>
 </html>
