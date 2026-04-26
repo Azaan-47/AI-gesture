@@ -21,7 +21,6 @@
       font-weight: bold;
     }
 
-    /* Layout */
     .container {
       display: flex;
       justify-content: center;
@@ -30,7 +29,7 @@
       padding: 20px;
     }
 
-    /* Bars (LEFT SIDE NOW) */
+    /* Bars */
     #results {
       width: 300px;
       text-align: left;
@@ -69,6 +68,24 @@
       border: 2px solid #333;
       border-radius: 10px;
     }
+
+    /* Button */
+    #gameBtn {
+      margin: 30px 0;
+      padding: 12px 20px;
+      font-size: 16px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    #gameBtn:hover {
+      background: #45a049;
+      transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
@@ -83,6 +100,9 @@
     <!-- RIGHT: Camera -->
     <div id="webcam-container"></div>
   </div>
+
+  <!-- Bottom Button -->
+  <button id="gameBtn">Play Gesture Game 🎮</button>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
@@ -183,6 +203,11 @@
         bar.innerText = prob.toFixed(1) + "%";
       }
     }
+
+    // Button click
+    document.getElementById("gameBtn").onclick = function () {
+      window.location.href = "game.html";
+    };
 
     window.onload = init;
   </script>
