@@ -2,50 +2,35 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Gesture Phone Lock</title>
+  <title>Gesture Password System</title>
   <style>
     body {
       margin: 0;
-      background: #000;
-      font-family: Arial;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      background: #111;
       color: white;
-    }
-
-    /* Phone frame */
-    .phone {
-      width: 320px;
-      height: 600px;
-      background: linear-gradient(180deg, #111, #000);
-      border-radius: 30px;
-      box-shadow: 0 0 30px rgba(0,0,0,0.8);
-      position: relative;
-      overflow: hidden;
-    }
-
-    /* Time */
-    #time {
-      font-size: 42px;
+      font-family: Arial;
       text-align: center;
-      margin-top: 40px;
     }
 
-    #date {
-      text-align: center;
-      color: #aaa;
-      font-size: 14px;
+    h1 { margin: 15px; }
+
+    #status {
+      font-size: 20px;
+      margin: 10px;
     }
 
-    /* Lock */
+    #sequence {
+      font-size: 18px;
+      margin: 10px;
+      color: #ccc;
+    }
+
     #lock {
-      width: 100px;
-      height: 100px;
+      width: 120px;
+      height: 120px;
+      margin: 30px auto;
       border-radius: 50%;
       background: red;
-      margin: 80px auto;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -53,52 +38,40 @@
       transition: 0.3s;
     }
 
-    #status {
-      text-align: center;
-      font-size: 18px;
-    }
-
-    #sequence {
-      text-align: center;
-      font-size: 16px;
-      color: #bbb;
-      margin-top: 10px;
-    }
-
-    /* Webcam small corner */
     #webcam-container {
       position: absolute;
-      bottom: 10px;
+      top: 10px;
       right: 10px;
     }
 
     canvas.webcam {
-      width: 90px;
+      width: 150px;
+      border: 2px solid white;
       border-radius: 10px;
-      border: 2px solid #444;
     }
 
-    /* Unlock animation */
-    .unlocked {
-      background: linear-gradient(180deg, #0a2, #030);
+    #resetBtn {
+      margin-top: 20px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      background: #444;
+      color: white;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-<div class="phone">
+<h1>Gesture Password Unlock</h1>
+<div id="status">Loading AI...</div>
+<div id="sequence">Waiting...</div>
 
-  <div id="time">--:--</div>
-  <div id="date">Loading...</div>
+<div id="lock">🔒</div>
 
-  <div id="lock">🔒</div>
+<button id="resetBtn">Reset</button>
 
-  <div id="status">Locked</div>
-  <div id="sequence">● ● ● ●</div>
-
-  <div id="webcam-container"></div>
-
-</div>
+<div id="webcam-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
@@ -112,35 +85,31 @@ const password = ["Thumbs Up", "Stop", "Peace", "Stop"];
 let input = [];
 let lastInputTime = 0;
 
-// TIME FUNCTION
-function updateTime() {
-  const now = new Date();
-
-  document.getElementById("time").innerText =
-    now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-  document.getElementById("date").innerText =
-    now.toDateString();
-}
-
-setInterval(updateTime, 1000);
-updateTime();
-
 async function init() {
+  const status = document.getElementById("status");
+
   try {
+    status.innerText = "Loading model...";
+
     model = await tmImage.load(URL + "model.json", URL + "metadata.json");
 
-    webcam = new tmImage.Webcam(120,120,true);
+    status.innerText = "Starting camera...";
+
+    webcam = new tmImage.Webcam(150, 150, true);
     await webcam.setup();
     await webcam.play();
 
     webcam.canvas.classList.add("webcam");
     document.getElementById("webcam-container").appendChild(webcam.canvas);
 
+    status.innerText = "Locked 🔒";
+    document.getElementById("sequence").innerText = "● ● ● ●";
+
     loop();
 
   } catch (e) {
-    document.getElementById("status").innerText = "AI Error";
+    console.error(e);
+    status.innerText = "Error: " + e.message;
   }
 }
 
@@ -154,7 +123,7 @@ async function predict() {
   const prediction = await model.predict(webcam.canvas);
 
   let highest = prediction.reduce((a,b)=>
-    a.probability>b.probability?a:b
+    a.probability > b.probability ? a : b
   );
 
   if (highest.probability < 0.9) return;
@@ -168,7 +137,6 @@ async function predict() {
 
   input.push(gesture);
 
-  // show dots
   document.getElementById("sequence").innerText =
     "● ".repeat(input.length);
 
@@ -189,36 +157,34 @@ function checkPassword() {
 }
 
 function success() {
-  document.getElementById("status").innerText = "Unlocked";
+  document.getElementById("status").innerText = "Unlocked ✅";
   document.getElementById("lock").style.background = "green";
   document.getElementById("lock").innerText = "🔓";
-
-  document.querySelector(".phone").classList.add("unlocked");
 
   setTimeout(reset, 4000);
 }
 
 function fail() {
-  document.getElementById("status").innerText = "Wrong Password";
+  document.getElementById("status").innerText = "Wrong Password ❌";
   input = [];
 
   setTimeout(() => {
-    document.getElementById("status").innerText = "Locked";
+    document.getElementById("status").innerText = "Locked 🔒";
     document.getElementById("sequence").innerText = "● ● ● ●";
-  }, 1200);
+  }, 1500);
 }
 
 function reset() {
   input = [];
-  document.getElementById("status").innerText = "Locked";
+  document.getElementById("status").innerText = "Locked 🔒";
+  document.getElementById("sequence").innerText = "● ● ● ●";
   document.getElementById("lock").style.background = "red";
   document.getElementById("lock").innerText = "🔒";
-  document.getElementById("sequence").innerText = "● ● ● ●";
-
-  document.querySelector(".phone").classList.remove("unlocked");
 }
 
-init();
+document.getElementById("resetBtn").onclick = reset;
+
+window.onload = init;
 </script>
 
 </body>
