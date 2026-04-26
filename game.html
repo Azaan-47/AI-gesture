@@ -32,23 +32,16 @@
       border-radius: 10px;
     }
 
-    #back {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: white;
-      padding: 8px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
+    #status {
+      font-size: 16px;
+      margin-bottom: 5px;
     }
   </style>
 </head>
 <body>
 
-<div id="back" onclick="window.location.href='index.html'">⬅ Back</div>
-
 <h1>Gesture Flappy Bird (Stop = Jump)</h1>
+<div id="status">Loading...</div>
 
 <canvas id="game" width="400" height="500"></canvas>
 <div id="webcam-container"></div>
@@ -60,7 +53,9 @@
 const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
 
 let model, webcam;
+let ready = false;
 
+// Game
 let canvas = document.getElementById("game");
 let ctx = canvas.getContext("2d");
 
@@ -75,21 +70,39 @@ let score = 0;
 let lastJump = 0;
 
 async function init() {
-  model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+  const status = document.getElementById("status");
 
-  webcam = new tmImage.Webcam(150, 150, true);
-  await webcam.setup();
-  await webcam.play();
+  try {
+    status.innerText = "Loading AI...";
 
-  webcam.canvas.classList.add("webcam");
-  document.getElementById("webcam-container").appendChild(webcam.canvas);
+    model = await tmImage.load(URL + "model.json", URL + "metadata.json");
 
-  loop();
+    status.innerText = "Starting camera...";
+
+    webcam = new tmImage.Webcam(150, 150, true);
+    await webcam.setup();
+    await webcam.play();
+
+    webcam.canvas.classList.add("webcam");
+    document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+    ready = true;
+    status.innerText = "Ready (show STOP to jump)";
+
+  } catch (err) {
+    console.error(err);
+    status.innerText = "AI failed, game still works (press SPACE)";
+  }
+
+  loop(); // ALWAYS start game loop
 }
 
 async function loop() {
-  webcam.update();
-  await predict();
+  if (webcam) webcam.update();
+
+  if (ready) {
+    await predict();
+  }
 
   update();
   draw();
@@ -111,6 +124,13 @@ async function predict() {
     }
   }
 }
+
+// keyboard backup (IMPORTANT)
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") {
+    bird.velocity = jump;
+  }
+});
 
 function update() {
   bird.velocity += gravity;
@@ -147,15 +167,18 @@ function update() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // bird
   ctx.fillStyle = "yellow";
   ctx.fillRect(bird.x, bird.y, 20, 20);
 
+  // pipes
   ctx.fillStyle = "green";
   pipes.forEach(p => {
     ctx.fillRect(p.x, 0, 40, p.top);
     ctx.fillRect(p.x, p.bottom, 40, 500);
   });
 
+  // score
   ctx.fillStyle = "black";
   ctx.font = "20px Arial";
   ctx.fillText("Score: " + score, 10, 25);
