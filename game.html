@@ -2,22 +2,40 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Gesture Flappy Bird</title>
+  <title>Gesture Password System</title>
   <style>
     body {
       margin: 0;
-      background: #70c5ce;
+      background: #111;
+      color: white;
       font-family: Arial;
       text-align: center;
     }
 
-    h1 { margin: 10px; }
+    h1 { margin: 15px; }
 
-    #game {
-      border: 2px solid black;
-      display: block;
-      margin: auto;
-      background: #70c5ce;
+    #status {
+      font-size: 20px;
+      margin: 10px;
+    }
+
+    #sequence {
+      font-size: 18px;
+      margin: 10px;
+      color: #ccc;
+    }
+
+    #lock {
+      width: 120px;
+      height: 120px;
+      margin: 30px auto;
+      border-radius: 50%;
+      background: red;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      transition: 0.3s;
     }
 
     #webcam-container {
@@ -32,18 +50,27 @@
       border-radius: 10px;
     }
 
-    #status {
-      font-size: 16px;
-      margin-bottom: 5px;
+    #resetBtn {
+      margin-top: 20px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      background: #444;
+      color: white;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-<h1>Gesture Flappy Bird (Stop = Jump)</h1>
-<div id="status">Loading...</div>
+<h1>Gesture Password Unlock</h1>
+<div id="status">Locked 🔒</div>
+<div id="sequence">Enter Gesture Sequence...</div>
 
-<canvas id="game" width="400" height="500"></canvas>
+<div id="lock">🔒</div>
+
+<button id="resetBtn">Reset</button>
+
 <div id="webcam-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
@@ -53,60 +80,34 @@
 const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
 
 let model, webcam;
-let ready = false;
 
-// Game
-let canvas = document.getElementById("game");
-let ctx = canvas.getContext("2d");
+// PASSWORD
+const password = ["Thumbs Up", "Stop", "Peace", "Stop"];
+let input = [];
 
-let bird = { x: 50, y: 150, velocity: 0 };
-let gravity = 0.5;
-let jump = -8;
-
-let pipes = [];
-let frame = 0;
-let score = 0;
-
-let lastJump = 0;
+let lastInputTime = 0;
 
 async function init() {
-  const status = document.getElementById("status");
-
   try {
-    status.innerText = "Loading AI...";
-
     model = await tmImage.load(URL + "model.json", URL + "metadata.json");
 
-    status.innerText = "Starting camera...";
-
-    webcam = new tmImage.Webcam(150, 150, true);
+    webcam = new tmImage.Webcam(150,150,true);
     await webcam.setup();
     await webcam.play();
 
     webcam.canvas.classList.add("webcam");
     document.getElementById("webcam-container").appendChild(webcam.canvas);
 
-    ready = true;
-    status.innerText = "Ready (show STOP to jump)";
+    loop();
 
-  } catch (err) {
-    console.error(err);
-    status.innerText = "AI failed, game still works (press SPACE)";
+  } catch (e) {
+    document.getElementById("status").innerText = "AI failed to load";
   }
-
-  loop(); // ALWAYS start game loop
 }
 
 async function loop() {
-  if (webcam) webcam.update();
-
-  if (ready) {
-    await predict();
-  }
-
-  update();
-  draw();
-
+  webcam.update();
+  await predict();
   requestAnimationFrame(loop);
 }
 
@@ -117,79 +118,63 @@ async function predict() {
     a.probability>b.probability?a:b
   );
 
-  if (highest.className === "Stop" && highest.probability > 0.9) {
-    if (Date.now() - lastJump > 500) {
-      bird.velocity = jump;
-      lastJump = Date.now();
+  if (highest.probability < 0.9) return;
+
+  // cooldown to avoid spam
+  if (Date.now() - lastInputTime < 1000) return;
+
+  lastInputTime = Date.now();
+
+  const gesture = highest.className;
+
+  // Only accept relevant gestures
+  if (!password.includes(gesture)) return;
+
+  input.push(gesture);
+
+  document.getElementById("sequence").innerText =
+    "Input: " + input.join(" → ");
+
+  checkPassword();
+}
+
+function checkPassword() {
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] !== password[i]) {
+      fail();
+      return;
     }
   }
-}
 
-// keyboard backup (IMPORTANT)
-document.addEventListener("keydown", e => {
-  if (e.code === "Space") {
-    bird.velocity = jump;
+  if (input.length === password.length) {
+    success();
   }
-});
-
-function update() {
-  bird.velocity += gravity;
-  bird.y += bird.velocity;
-
-  if (frame % 90 === 0) {
-    let gap = 120;
-    let top = Math.random() * 250;
-
-    pipes.push({
-      x: 400,
-      top: top,
-      bottom: top + gap
-    });
-  }
-
-  pipes.forEach(p => {
-    p.x -= 2;
-
-    if (
-      bird.x < p.x + 40 &&
-      bird.x + 20 > p.x &&
-      (bird.y < p.top || bird.y > p.bottom)
-    ) {
-      reset();
-    }
-
-    if (p.x === bird.x) score++;
-  });
-
-  frame++;
 }
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // bird
-  ctx.fillStyle = "yellow";
-  ctx.fillRect(bird.x, bird.y, 20, 20);
-
-  // pipes
-  ctx.fillStyle = "green";
-  pipes.forEach(p => {
-    ctx.fillRect(p.x, 0, 40, p.top);
-    ctx.fillRect(p.x, p.bottom, 40, 500);
-  });
-
-  // score
-  ctx.fillStyle = "black";
-  ctx.font = "20px Arial";
-  ctx.fillText("Score: " + score, 10, 25);
+function success() {
+  document.getElementById("status").innerText = "Unlocked ✅";
+  document.getElementById("lock").style.background = "green";
+  document.getElementById("lock").innerText = "🔓";
 }
 
-function reset() {
-  bird.y = 150;
-  bird.velocity = 0;
-  pipes = [];
-  score = 0;
+function fail() {
+  document.getElementById("status").innerText = "Wrong Password ❌";
+  document.getElementById("lock").style.background = "red";
+  input = [];
+
+  setTimeout(() => {
+    document.getElementById("status").innerText = "Locked 🔒";
+    document.getElementById("sequence").innerText = "Try Again...";
+  }, 1500);
 }
+
+document.getElementById("resetBtn").onclick = () => {
+  input = [];
+  document.getElementById("status").innerText = "Locked 🔒";
+  document.getElementById("sequence").innerText = "Enter Gesture Sequence...";
+  document.getElementById("lock").style.background = "red";
+  document.getElementById("lock").innerText = "🔒";
+};
 
 init();
 </script>
