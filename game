@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gesture Flappy Bird</title>
+  <style>
+    body {
+      margin: 0;
+      background: #70c5ce;
+      font-family: Arial;
+      text-align: center;
+    }
+
+    h1 { margin: 10px; }
+
+    #game {
+      border: 2px solid black;
+      display: block;
+      margin: auto;
+      background: #70c5ce;
+    }
+
+    #webcam-container {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+
+    canvas.webcam {
+      width: 150px;
+      border: 2px solid white;
+      border-radius: 10px;
+    }
+
+    #back {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<div id="back" onclick="window.location.href='index.html'">⬅ Back</div>
+
+<h1>Gesture Flappy Bird (Stop = Jump)</h1>
+
+<canvas id="game" width="400" height="500"></canvas>
+<div id="webcam-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8"></script>
+
+<script>
+const URL = "https://teachablemachine.withgoogle.com/models/lQPAgjPcH/";
+
+let model, webcam;
+
+let canvas = document.getElementById("game");
+let ctx = canvas.getContext("2d");
+
+let bird = { x: 50, y: 150, velocity: 0 };
+let gravity = 0.5;
+let jump = -8;
+
+let pipes = [];
+let frame = 0;
+let score = 0;
+
+let lastJump = 0;
+
+async function init() {
+  model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+
+  webcam = new tmImage.Webcam(150, 150, true);
+  await webcam.setup();
+  await webcam.play();
+
+  webcam.canvas.classList.add("webcam");
+  document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+  loop();
+}
+
+async function loop() {
+  webcam.update();
+  await predict();
+
+  update();
+  draw();
+
+  requestAnimationFrame(loop);
+}
+
+async function predict() {
+  const prediction = await model.predict(webcam.canvas);
+
+  let highest = prediction.reduce((a,b)=>
+    a.probability>b.probability?a:b
+  );
+
+  if (highest.className === "Stop" && highest.probability > 0.9) {
+    if (Date.now() - lastJump > 500) {
+      bird.velocity = jump;
+      lastJump = Date.now();
+    }
+  }
+}
+
+function update() {
+  bird.velocity += gravity;
+  bird.y += bird.velocity;
+
+  if (frame % 90 === 0) {
+    let gap = 120;
+    let top = Math.random() * 250;
+
+    pipes.push({
+      x: 400,
+      top: top,
+      bottom: top + gap
+    });
+  }
+
+  pipes.forEach(p => {
+    p.x -= 2;
+
+    if (
+      bird.x < p.x + 40 &&
+      bird.x + 20 > p.x &&
+      (bird.y < p.top || bird.y > p.bottom)
+    ) {
+      reset();
+    }
+
+    if (p.x === bird.x) score++;
+  });
+
+  frame++;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "yellow";
+  ctx.fillRect(bird.x, bird.y, 20, 20);
+
+  ctx.fillStyle = "green";
+  pipes.forEach(p => {
+    ctx.fillRect(p.x, 0, 40, p.top);
+    ctx.fillRect(p.x, p.bottom, 40, 500);
+  });
+
+  ctx.fillStyle = "black";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + score, 10, 25);
+}
+
+function reset() {
+  bird.y = 150;
+  bird.velocity = 0;
+  pipes = [];
+  score = 0;
+}
+
+init();
+</script>
+
+</body>
+</html>
