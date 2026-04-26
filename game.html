@@ -73,6 +73,7 @@
 
 <div id="webcam-container"></div>
 
+<!-- OLD STABLE SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8"></script>
 
@@ -101,7 +102,8 @@ async function init() {
     loop();
 
   } catch (e) {
-    document.getElementById("status").innerText = "AI failed to load";
+    console.error(e);
+    document.getElementById("status").innerText = "Error loading AI";
   }
 }
 
@@ -120,9 +122,7 @@ async function predict() {
 
   if (highest.probability < 0.9) return;
 
-  // cooldown
   if (Date.now() - lastInputTime < 1000) return;
-
   lastInputTime = Date.now();
 
   const gesture = highest.className;
